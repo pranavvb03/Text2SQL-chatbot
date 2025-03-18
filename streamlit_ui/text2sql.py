@@ -1,6 +1,7 @@
 import streamlit as st
 st.set_page_config(layout="wide")
 import atexit
+import numpy as np
 import pandas as pd
 import re
 import sqlite3
@@ -407,65 +408,147 @@ def extract_sql_refinement_intent(question):
     return False
 
 def create_schema_diagram():
-    """Create a simple schema diagram using Plotly"""
-    if not st.session_state.schema_visualization:
+    """Create an interactive data relationship visualization using Plotly"""
+    if st.session_state.db_path is None:
         return None
     
-    schema = st.session_state.schema_visualization
-    columns = schema["columns"]
-    
-    fig = go.Figure()
-    
-    # Create rectangles for each column with type information
-    y_positions = [(len(columns) - i) * 50 for i in range(len(columns))]
-    
-    # Header box
-    fig.add_shape(
-        type="rect",
-        x0=75, y0=max(y_positions) + 25, x1=325, y1=max(y_positions) + 75,
-        line=dict(color="RoyalBlue", width=2),
-        fillcolor="LightSkyBlue",
-    )
-    
-    # Add table name text
-    fig.add_annotation(
-        x=200, y=max(y_positions) + 50,
-        text=f"<b>{schema['table_name']}</b><br>({schema['row_count']} rows)",
-        showarrow=False,
-        font=dict(size=14)
-    )
-    
-    # Column boxes
-    for i, column in enumerate(columns):
-        y_pos = y_positions[i]
+    try:
+        # Connect to the database and load data
+        conn = sqlite3.connect(st.session_state.db_path)
+        df = pd.read_sql_query("SELECT * FROM data_table", conn)
+        conn.close()
         
-        # Column box
-        fig.add_shape(
-            type="rect",
-            x0=75, y0=y_pos - 25, x1=325, y1=y_pos + 25,
-            line=dict(color="DarkGrey", width=1),
-            fillcolor="WhiteSmoke",
-        )
+        # Create visualization controls
+        st.subheader("Interactive Data Explorer")
         
-        # Add column text
-        fig.add_annotation(
-            x=200, y=y_pos,
-            text=f"{column['name']} ({column['type']})",
-            showarrow=False
-        )
-    
-    # Update layout
-    fig.update_layout(
-        width=400,
-        height=(len(columns) + 1) * 50 + 50,
-        showlegend=False,
-        plot_bgcolor='white',
-        margin=dict(l=20, r=20, t=30, b=20),
-        xaxis=dict(showgrid=False, zeroline=False, showticklabels=False),
-        yaxis=dict(showgrid=False, zeroline=False, showticklabels=False)
-    )
-    
-    return fig
+        # Get only numeric columns for correlation analysis
+        numeric_cols = df.select_dtypes(include=[np.number]).columns.tolist()
+        
+        if len(numeric_cols) < 2:
+            st.info("Need at least two numeric columns for visualizations")
+            return None
+            
+        # Create tabs for different visualization types
+        viz_tabs = st.tabs(["Correlation Matrix", "Scatter Plot Matrix", "Distribution Analysis"])
+        
+        with viz_tabs[0]:  # Correlation Matrix
+            if len(numeric_cols) > 1:
+                corr = df[numeric_cols].corr()
+                
+                # Create correlation heatmap
+                fig = go.Figure(data=go.Heatmap(
+                    z=corr.values,
+                    x=corr.columns,
+                    y=corr.columns,
+                    colorscale='Viridis',
+                    zmin=-1, zmax=1
+                ))
+                
+                fig.update_layout(
+                    title="Correlation Matrix",
+                    height=500,
+                    width=700
+                )
+                
+                st.plotly_chart(fig)
+                
+                # Show strongest correlations
+                st.subheader("Strongest Relationships")
+                
+                # Get the upper triangle of the correlation matrix
+                upper = corr.where(np.triu(np.ones(corr.shape), k=1).astype(bool))
+                
+                # Find the top 5 strongest correlations
+                strongest = upper.unstack().sort_values(kind="quicksort", ascending=False).dropna()
+                strongest = strongest.head(5)
+                
+                # Display the strongest correlations
+                for i, (cols, val) in enumerate(strongest.items()):
+                    st.write(f"{i+1}. **{cols[0]}** and **{cols[1]}**: {val:.3f}")
+        
+        with viz_tabs[1]:  # Scatter Plot Matrix
+            if len(numeric_cols) > 1:
+                # Let user select columns for scatter plot matrix (max 4 for readability)
+                selected_cols = st.multiselect(
+                    "Select columns for scatter plot matrix (max 4 recommended)",
+                    options=numeric_cols,
+                    default=numeric_cols[:min(4, len(numeric_cols))]
+                )
+                
+                if selected_cols and len(selected_cols) >= 2:
+                    fig = px.scatter_matrix(
+                        df, 
+                        dimensions=selected_cols,
+                        color=df[selected_cols[0]],
+                        opacity=0.7
+                    )
+                    fig.update_layout(height=700, width=700)
+                    st.plotly_chart(fig)
+                else:
+                    st.info("Select at least 2 columns for scatter plot matrix")
+        
+        with viz_tabs[2]:  # Distribution Analysis
+            # Let user select column for distribution analysis
+            selected_col = st.selectbox("Select column for distribution analysis", numeric_cols)
+            
+            if selected_col:
+                # Create histogram and box plot
+                fig = go.Figure()
+                
+                # Add histogram
+                fig.add_trace(go.Histogram(
+                    x=df[selected_col],
+                    name="Distribution",
+                    opacity=0.7,
+                    marker_color="royalblue"
+                ))
+                
+                # Add box plot on a separate axis
+                fig.add_trace(go.Box(
+                    x=df[selected_col],
+                    name="Box Plot",
+                    marker_color="indianred",
+                    yaxis="y2"
+                ))
+                
+                # Update layout
+                fig.update_layout(
+                    title=f"Distribution Analysis: {selected_col}",
+                    xaxis_title=selected_col,
+                    yaxis_title="Count",
+                    yaxis2=dict(
+                        overlaying="y",
+                        side="right",
+                        showticklabels=False
+                    ),
+                    height=400,
+                    width=700,
+                    bargap=0.1
+                )
+                
+                st.plotly_chart(fig)
+                
+                # Show descriptive statistics
+                st.subheader(f"Statistics for {selected_col}")
+                stats = df[selected_col].describe()
+                
+                # Create two columns for stats
+                col1, col2 = st.columns(2)
+                
+                with col1:
+                    st.metric("Mean", f"{stats['mean']:.3f}")
+                    st.metric("Median", f"{stats['50%']:.3f}")
+                    st.metric("Standard Deviation", f"{stats['std']:.3f}")
+                
+                with col2:
+                    st.metric("Min", f"{stats['min']:.3f}")
+                    st.metric("Max", f"{stats['max']:.3f}")
+                    st.metric("Range", f"{stats['max'] - stats['min']:.3f}")
+        
+        return True
+    except Exception as e:
+        st.error(f"Error creating visualizations: {e}")
+        return None
 
 def generate_follow_up_questions(context, question, result_df):
     """Generate follow-up questions based on current question and results"""
@@ -677,8 +760,8 @@ if menu_choice == "New Chat" or menu_choice == "Chat History":
             
             with tabs[3]:  # Visualization tab
                 schema_fig = create_schema_diagram()
-                if schema_fig:
-                    st.plotly_chart(schema_fig)
+                if not schema_fig:
+                    st.info("Upload a CSV file with numeric data to see visualizations")
 
     if st.session_state.db_path:           
         chat_model = ChatGoogleGenerativeAI(model="gemini-1.5-pro", temperature=0.3)
