@@ -429,7 +429,7 @@ def create_schema_diagram():
             return None
             
         # Create tabs for different visualization types
-        viz_tabs = st.tabs(["Correlation Matrix", "Scatter Plot Matrix", "Distribution Analysis"])
+        viz_tabs = st.tabs(["Correlation Matrix", "Scatter Plot Matrix"])
         
         with viz_tabs[0]:  # Correlation Matrix
             if len(numeric_cols) > 1:
@@ -486,65 +486,6 @@ def create_schema_diagram():
                     st.plotly_chart(fig)
                 else:
                     st.info("Select at least 2 columns for scatter plot matrix")
-        
-        with viz_tabs[2]:  # Distribution Analysis
-            # Let user select column for distribution analysis
-            selected_col = st.selectbox("Select column for distribution analysis", numeric_cols)
-            
-            if selected_col:
-                # Create histogram and box plot
-                fig = go.Figure()
-                
-                # Add histogram
-                fig.add_trace(go.Histogram(
-                    x=df[selected_col],
-                    name="Distribution",
-                    opacity=0.7,
-                    marker_color="royalblue"
-                ))
-                
-                # Add box plot on a separate axis
-                fig.add_trace(go.Box(
-                    x=df[selected_col],
-                    name="Box Plot",
-                    marker_color="indianred",
-                    yaxis="y2"
-                ))
-                
-                # Update layout
-                fig.update_layout(
-                    title=f"Distribution Analysis: {selected_col}",
-                    xaxis_title=selected_col,
-                    yaxis_title="Count",
-                    yaxis2=dict(
-                        overlaying="y",
-                        side="right",
-                        showticklabels=False
-                    ),
-                    height=400,
-                    width=700,
-                    bargap=0.1
-                )
-                
-                st.plotly_chart(fig)
-                
-                # Show descriptive statistics
-                st.subheader(f"Statistics for {selected_col}")
-                stats = df[selected_col].describe()
-                
-                # Create two columns for stats
-                col1, col2 = st.columns(2)
-                
-                with col1:
-                    st.metric("Mean", f"{stats['mean']:.3f}")
-                    st.metric("Median", f"{stats['50%']:.3f}")
-                    st.metric("Standard Deviation", f"{stats['std']:.3f}")
-                
-                with col2:
-                    st.metric("Min", f"{stats['min']:.3f}")
-                    st.metric("Max", f"{stats['max']:.3f}")
-                    st.metric("Range", f"{stats['max'] - stats['min']:.3f}")
-        
         return True
     except Exception as e:
         st.error(f"Error creating visualizations: {e}")
