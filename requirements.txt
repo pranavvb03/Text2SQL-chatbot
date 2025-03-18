@@ -1,5 +1,6 @@
 streamlit
 pandas 
+numpy
 google-generativeai
 langchain
 langchain_community
