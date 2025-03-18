@@ -199,7 +199,7 @@ def get_query_explanation(query: str) -> str:
 
 def optimize_query(query: str) -> str:
     """Get optimization suggestions for SQL query"""
-    chat_model = ChatGoogleGenerativeAI(model="gemini-1.5-pro", temperature=0.3)
+    chat_model = ChatGoogleGenerativeAI(model="gemini-2.0-flash", temperature=0.3)
     
     optimize_prompt = PromptTemplate(
         input_variables=["query"],
