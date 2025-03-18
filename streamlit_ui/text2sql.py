@@ -493,7 +493,7 @@ def create_schema_diagram():
 
 def generate_follow_up_questions(context, question, result_df):
     """Generate follow-up questions based on current question and results"""
-    chat_model = ChatGoogleGenerativeAI(model="gemini-1.5-pro", temperature=0.7)
+    chat_model = ChatGoogleGenerativeAI(model="gemini-2.0-flash", temperature=0.7)
     
     # Create a description of the result data
     result_description = "No results" if result_df is None or result_df.empty else f"Result with {len(result_df)} rows and columns: {', '.join(result_df.columns.tolist())}"
@@ -518,16 +518,24 @@ def generate_follow_up_questions(context, question, result_df):
     
     follow_up_chain = LLMChain(llm=chat_model, prompt=follow_up_prompt)
     
-    try:
-        follow_ups = follow_up_chain.run(
-            context=context, 
-            question=question, 
-            result_description=result_description
-        )
-        return [q.strip() for q in follow_ups.split(',')]
-    except Exception as e:
-        return []
-
+    retries = 3
+    for attempt in range(retries):
+        try:
+            follow_ups = follow_up_chain.run(
+                context=context, 
+                question=question, 
+                result_description=result_description
+            )
+            return [q.strip() for q in follow_ups.split(',') if q.strip()]
+        except Exception as e:       
+            if "ResourceExhausted" in str(e) or "429" in str(e):
+                wait_time = (attempt + 1) * 2  # Exponential backoff (2s, 4s, 6s)
+                logging.info(f"Retrying in {wait_time} seconds...")
+                time.sleep(wait_time)
+            else:
+                break
+    return ["Would you like to refine your query?", "Do you want to include more columns?", "Should I use different filtering criteria?"]
+    
 def interpret_natural_query(question):
     """Advanced query interpretation to extract dimensions, metrics, etc."""
     chat_model = ChatGoogleGenerativeAI(model="gemini-1.5-pro", temperature=0.3)
