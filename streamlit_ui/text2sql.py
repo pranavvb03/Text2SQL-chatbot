@@ -626,18 +626,7 @@ with st.sidebar:
                 st.text(template['template'])
                 if st.button(f"Use Template #{idx + 1}"):
                     st.session_state.messages.append({"role": "user", "content": template['template']})
-        
-        # Add new template
-        with st.expander("Add New Template"):
-            new_template_name = st.text_input("Template Name")
-            new_template_text = st.text_area("Template Text")
-            if st.button("Save Template") and new_template_name and new_template_text:
-                st.session_state.query_templates.append({
-                    "name": new_template_name,
-                    "template": new_template_text
-                })
-                st.success("Template added!")
-    
+   
     elif menu_choice == "Analytics":
         st.subheader("Query Analytics")
         
