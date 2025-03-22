@@ -25,7 +25,7 @@ USE_CASES = {
     "Sales Analysis": {
         "description": "Analyze sales data to identify trends, top-performing products, and customer behavior.",
         "prompt_template": """
-        You are a sales analyst. Generate a SQL query to analyze sales data based on the following information:
+        You are a sales analyst. Generate a SQL query to analyze sales data based on the following database information, conversation history, and question.
         
         Database Information:
         {context}
@@ -43,12 +43,14 @@ USE_CASES = {
         
         Return ONLY the SQL query without any explanations or decorations.
         If you cannot generate a valid query, respond with "I cannot answer this question with the available data."
+        
+        Response:
         """
     },
     "Customer Segmentation": {
         "description": "Segment customers based on their behavior, demographics, and purchase history.",
         "prompt_template": """
-        You are a marketing analyst. Generate a SQL query to segment customers based on the following information:
+        You are a marketing analyst. Generate a SQL query to segment customers based on the following database information, conversation history, and question.
         
         Database Information:
         {context}
@@ -66,12 +68,14 @@ USE_CASES = {
         
         Return ONLY the SQL query without any explanations or decorations.
         If you cannot generate a valid query, respond with "I cannot answer this question with the available data."
+
+        Response:
         """
     },
     "Inventory Management": {
         "description": "Manage and analyze inventory data to optimize stock levels.",
         "prompt_template": """
-        You are an inventory manager. Generate a SQL query to analyze inventory data based on the following information:
+        You are an inventory manager. Generate a SQL query to analyze inventory data based on the following database information, conversation history, and question.
         
         Database Information:
         {context}
@@ -89,12 +93,14 @@ USE_CASES = {
         
         Return ONLY the SQL query without any explanations or decorations.
         If you cannot generate a valid query, respond with "I cannot answer this question with the available data."
+
+        Response:
         """
     },
     "Healthcare Analytics": {
         "description": "Analyze healthcare data for patient outcomes, treatment efficacy, and operational efficiency.",
         "prompt_template": """
-        You are a healthcare analyst. Generate a SQL query to analyze healthcare data based on the following information:
+        You are a healthcare analyst. Generate a SQL query to analyze healthcare data based on the following database information, conversation history, and question.
         
         Database Information:
         {context}
@@ -112,12 +118,14 @@ USE_CASES = {
         
         Return ONLY the SQL query without any explanations or decorations.
         If you cannot generate a valid query, respond with "I cannot answer this question with the available data."
+
+        Response:
         """
     },
     "Finance Analytics": {
         "description": "Analyze financial transactions, detect fraud, and evaluate profitability.",
         "prompt_template": """
-        You are a finance analyst. Generate a SQL query to analyze financial data based on the following information:
+        You are a finance analyst. Generate a SQL query to analyze financial data based on the following database information, conversation history, and question.
         
         Database Information:
         {context}
@@ -138,6 +146,8 @@ USE_CASES = {
         
         Return ONLY the SQL query without any explanations or decorations.
         If you cannot generate a valid query, respond with "I cannot answer this question with the available data."
+
+        Response:
         """
     }
 }
@@ -712,23 +722,23 @@ if 'use_case' not in st.session_state or st.session_state.use_case is None:
     if st.button("Set Use Case"):
         st.session_state.use_case = use_case
         st.rerun()
-if st.session_state.use_case:
-    prompt_template = USE_CASES[st.session_state.use_case]['prompt_template']
-else:
-    prompt_template = """
-    You are a SQL expert. Generate a SQL query based on the following database information, conversation history, and question:
+# if st.session_state.use_case:
+#     prompt_template = USE_CASES[st.session_state.use_case]['prompt_template']
+# else:
+#     prompt_template = """
+#     You are a SQL expert. Generate a SQL query based on the following database information, conversation history, and question:
     
-    Database Information:
-    {context}
+#     Database Information:
+#     {context}
     
-    Previous Conversation:
-    {history}
+#     Previous Conversation:
+#     {history}
     
-    User Question: {question}
+#     User Question: {question}
     
-    Return ONLY the SQL query without any explanations or decorations.
-    If you cannot generate a valid query, respond with "I cannot answer this question with the available data."
-    """
+#     Return ONLY the SQL query without any explanations or decorations.
+#     If you cannot generate a valid query, respond with "I cannot answer this question with the available data."
+#     """
     
 # Sidebar for navigation and features
 with st.sidebar:
@@ -854,7 +864,7 @@ if st.session_state.use_case:
             chat_model = ChatGoogleGenerativeAI(model="gemini-1.5-pro", temperature=0.3)
             prompt = PromptTemplate(
                 input_variables=["context", "question", "history"],
-                template=prompt_template
+                template=USE_CASES[st.session_state.use_case]['prompt_template']
             )
             
             chain = LLMChain(llm=chat_model, prompt=prompt)
@@ -939,18 +949,18 @@ if st.session_state.use_case:
                                 if fig:
                                     # Build response with query details
                                     response = f"""
-    SQL Query:
-    ```sql
-    {cleaned_query}
-    ```
-    
-    Execution Time: {exec_time}s
-    
-    Results:
-    {results.to_markdown()}
-    
-    Explanation:
-    {explanation}
+SQL Query:
+```sql
+{cleaned_query}
+```
+
+Execution Time: {exec_time}s
+
+Results:
+{results.to_markdown()}
+
+Explanation:
+{explanation}
                                     """
                                     
                                     st.session_state.messages.append({"role": "assistant", "content": response})
@@ -972,37 +982,37 @@ if st.session_state.use_case:
                                     
                                 else:
                                     response = f"""
-    SQL Query:
-    ```sql
-    {cleaned_query}
-    ```
-    
-    Execution Time: {exec_time}s
-    
-    Results:
-    {results.to_markdown()}
-    
-    Explanation:
-    {explanation}
-    
-    Couldn't create visualization: {error}
+SQL Query:
+```sql
+{cleaned_query}
+```
+
+Execution Time: {exec_time}s
+
+Results:
+{results.to_markdown()}
+
+Explanation:
+{explanation}
+
+Couldn't create visualization: {error}
                                     """
                                     st.session_state.messages.append({"role": "assistant", "content": response})
                             else:
                                 # Build response with query details
                                 response = f"""
-    SQL Query:
-    ```sql
-    {cleaned_query}
-    ```
-    
-    Execution Time: {exec_time}s
-    
-    Results:
-    {results.to_markdown()}
-    
-    Explanation:
-    {explanation}
+SQL Query:
+```sql
+{cleaned_query}
+```
+
+Execution Time: {exec_time}s
+
+Results:
+{results.to_markdown()}
+
+Explanation:
+{explanation}
                                 """
                                 
                                 st.session_state.messages.append({"role": "assistant", "content": response})
