@@ -21,11 +21,131 @@ import plotly.graph_objects as go
 import json
 import time
 
+USE_CASES = {
+    "Sales Analysis": {
+        "description": "Analyze sales data to identify trends, top-performing products, and customer behavior.",
+        "prompt_template": """
+        You are a sales analyst. Generate a SQL query to analyze sales data based on the following information:
+        
+        Database Information:
+        {context}
+        
+        Previous Conversation:
+        {history}
+        
+        User Question: {question}
+        
+        Focus on:
+        - Sales trends over time
+        - Top-performing products or categories
+        - Customer segmentation by purchase behavior
+        - Revenue analysis by region or channel
+        
+        Return ONLY the SQL query without any explanations or decorations.
+        If you cannot generate a valid query, respond with "I cannot answer this question with the available data."
+        """
+    },
+    "Customer Segmentation": {
+        "description": "Segment customers based on their behavior, demographics, and purchase history.",
+        "prompt_template": """
+        You are a marketing analyst. Generate a SQL query to segment customers based on the following information:
+        
+        Database Information:
+        {context}
+        
+        Previous Conversation:
+        {history}
+        
+        User Question: {question}
+        
+        Focus on:
+        - RFM (Recency, Frequency, Monetary) analysis
+        - Demographic segmentation (age, gender, location)
+        - Behavioral segmentation (purchase frequency, product preferences)
+        - Customer lifetime value (CLV) analysis
+        
+        Return ONLY the SQL query without any explanations or decorations.
+        If you cannot generate a valid query, respond with "I cannot answer this question with the available data."
+        """
+    },
+    "Inventory Management": {
+        "description": "Manage and analyze inventory data to optimize stock levels.",
+        "prompt_template": """
+        You are an inventory manager. Generate a SQL query to analyze inventory data based on the following information:
+        
+        Database Information:
+        {context}
+        
+        Previous Conversation:
+        {history}
+        
+        User Question: {question}
+        
+        Focus on:
+        - Stock levels and reorder points
+        - Inventory turnover rates
+        - Deadstock or obsolete inventory
+        - Supplier performance analysis
+        
+        Return ONLY the SQL query without any explanations or decorations.
+        If you cannot generate a valid query, respond with "I cannot answer this question with the available data."
+        """
+    },
+    "Healthcare Analytics": {
+        "description": "Analyze healthcare data for patient outcomes, treatment efficacy, and operational efficiency.",
+        "prompt_template": """
+        You are a healthcare analyst. Generate a SQL query to analyze healthcare data based on the following information:
+        
+        Database Information:
+        {context}
+        
+        Previous Conversation:
+        {history}
+        
+        User Question: {question}
+        
+        Focus on:
+        - Patient outcomes and treatment efficacy
+        - Hospital readmission rates
+        - Operational efficiency (bed occupancy, wait times)
+        - Disease prevalence and trends
+        
+        Return ONLY the SQL query without any explanations or decorations.
+        If you cannot generate a valid query, respond with "I cannot answer this question with the available data."
+        """
+    },
+    "Finance Analytics": {
+        "description": "Analyze financial transactions, detect fraud, and evaluate profitability.",
+        "prompt_template": """
+        You are a finance analyst. Generate a SQL query to analyze financial data based on the following information:
+        
+        Database Information:
+        {context}
+        
+        Previous Conversation:
+        {history}
+        
+        User Question: {question}
+        
+        Focus on:
+        - Transaction analysis
+        - Fraud detection
+        - Revenue trend analysis
+        - Expense breakdown
+        - ROI analysis
+        - Customer profitability
+        - Budget variance analysis
+        
+        Return ONLY the SQL query without any explanations or decorations.
+        If you cannot generate a valid query, respond with "I cannot answer this question with the available data."
+        """
+    }
+}
 # Initialize session state variables
 session_state_keys = [
     'messages', 'db_path', 'vector_store', 'table_info', 'chat_history', 
     'current_chat', 'df_preview', 'query_history', 'favorites', 'schema_visualization',
-    'query_explanation', 'execution_time', 'execution_plan', 'query_templates'
+    'query_explanation', 'execution_time', 'execution_plan', 'query_templates', 'use_case'
 ]
 
 for key in session_state_keys:
@@ -582,6 +702,34 @@ def interpret_natural_query(question):
 st.title("Advanced Text2SQL Chatbot")
 st.write("Upload a CSV file to create a database and ask questions in natural language!")
 
+if 'use_case' not in st.session_state or st.session_state.use_case is None:
+    st.sidebar.title("Select Use Case")
+    use_case = st.sidebar.selectbox("Choose a use case", list(USE_CASES.keys()), format_func=lambda x: f"{x} - {USE_CASES[x]['description']}")
+    if st.sidebar.button("Set Use Case"):
+        st.session_state.use_case = use_case
+        st.experimental_rerun()
+
+if st.session_state.use_case:
+    st.sidebar.write(f"**Current Use Case:** {st.session_state.use_case}")
+
+if st.session_state.use_case:
+    prompt_template = USE_CASES[st.session_state.use_case]['prompt_template']
+else:
+    prompt_template = """
+    You are a SQL expert. Generate a SQL query based on the following database information, conversation history, and question:
+    
+    Database Information:
+    {context}
+    
+    Previous Conversation:
+    {history}
+    
+    User Question: {question}
+    
+    Return ONLY the SQL query without any explanations or decorations.
+    If you cannot generate a valid query, respond with "I cannot answer this question with the available data."
+    """
+    
 # Sidebar for navigation and features
 with st.sidebar:
     st.title("Navigation")
@@ -705,21 +853,7 @@ if menu_choice == "New Chat" or menu_choice == "Chat History":
         chat_model = ChatGoogleGenerativeAI(model="gemini-1.5-pro", temperature=0.3)
         prompt = PromptTemplate(
             input_variables=["context", "question", "history"],
-            template="""
-            You are a SQL expert. Generate a SQL query based on the following database information, conversation history, and question.
-            Return ONLY the SQL query without any explanations or decorations.
-            If you cannot generate a valid query, respond with "I cannot answer this question with the available data."
-            
-            Database Information:
-            {context}
-            
-            Previous Conversation:
-            {history}
-            
-            User Question: {question}
-            
-            Response:
-            """
+            template=prompt_template
         )
         
         chain = LLMChain(llm=chat_model, prompt=prompt)
