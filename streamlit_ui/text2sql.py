@@ -964,6 +964,11 @@ Explanation:
                                     """
                                     
                                     st.session_state.messages.append({"role": "assistant", "content": response})
+                                    st.session_state.messages.append({
+                                    "role": "assistant", 
+                                    "content": "**Results:**",
+                                    "dataframe": results
+                                    })
                                     
                                     # Store chart information in the message
                                     st.session_state.messages.append({
@@ -1016,7 +1021,11 @@ Explanation:
                                 """
                                 
                                 st.session_state.messages.append({"role": "assistant", "content": response})
-                                
+                                st.session_state.messages.append({
+                                "role": "assistant", 
+                                "content": "**Results:**",
+                                "dataframe": results
+                                })
                                 # Add follow-up questions if available
                                 if follow_up_questions:
                                     follow_up_text = "You might want to ask:\n\n" + "\n".join([f"- {q}" for q in follow_up_questions])
