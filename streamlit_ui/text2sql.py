@@ -703,15 +703,15 @@ st.title("Advanced Text2SQL Chatbot")
 st.write("Upload a CSV file to create a database and ask questions in natural language!")
 
 if 'use_case' not in st.session_state or st.session_state.use_case is None:
-    st.sidebar.title("Select Use Case")
-    use_case = st.sidebar.selectbox("Choose a use case", list(USE_CASES.keys()), format_func=lambda x: f"{x} - {USE_CASES[x]['description']}")
-    if st.sidebar.button("Set Use Case"):
+    st.subheader("Select Use Case")
+    use_case = st.selectbox(
+        "Choose a use case", 
+        list(USE_CASES.keys()), 
+        format_func=lambda x: f"{x} - {USE_CASES[x]['description']}"
+    )
+    if st.button("Set Use Case"):
         st.session_state.use_case = use_case
-        st.experimental_rerun()
-
-if st.session_state.use_case:
-    st.sidebar.write(f"**Current Use Case:** {st.session_state.use_case}")
-
+        st.rerun()
 if st.session_state.use_case:
     prompt_template = USE_CASES[st.session_state.use_case]['prompt_template']
 else:
@@ -810,257 +810,258 @@ with st.sidebar:
         - Query history analytics
         """)
 
-# Main content area
-if menu_choice == "New Chat" or menu_choice == "Chat History":
-    # File upload
-    uploaded_file = st.file_uploader("Choose a CSV file", type="csv")
+if st.session_state.use_case:
+    st.write(f"**Selected Use Case:** {st.session_state.use_case}")
+    if menu_choice == "New Chat" or menu_choice == "Chat History":
+        # File upload
+        uploaded_file = st.file_uploader("Choose a CSV file", type="csv")
+        
+        if uploaded_file is not None and st.session_state.db_path is None:
+            st.session_state.db_path = create_db_from_csv(uploaded_file)
+            st.session_state.table_info, column_stats = get_table_info(st.session_state.db_path)
+            embeddings = GoogleGenerativeAIEmbeddings(model="models/embedding-001")
+            st.session_state.vector_store = create_vector_store(st.session_state.table_info, embeddings)
+            st.success("Database created!")
+            
+        # Database info expander section
+        if st.session_state.db_path:
+            with st.expander("Database Information"):
+                tabs = st.tabs(["Preview", "Schema", "Statistics", "Visualization"])
+                
+                with tabs[0]:  # Preview tab
+                    if st.session_state.df_preview is not None:
+                        st.dataframe(st.session_state.df_preview)
+                
+                with tabs[1]:  # Schema tab
+                    if st.session_state.table_info:
+                        st.text(st.session_state.table_info)
+                
+                with tabs[2]:  # Statistics tab
+                    if st.session_state.db_path:
+                        conn = sqlite3.connect(st.session_state.db_path)
+                        df = pd.read_sql_query("SELECT * FROM data_table", conn)
+                        conn.close()
+                        
+                        st.write("Numeric Column Statistics:")
+                        st.dataframe(df.describe())
+                
+                with tabs[3]:  # Visualization tab
+                    schema_fig = create_schema_diagram()
+                    if not schema_fig:
+                        st.info("Upload a CSV file with numeric data to see visualizations")
     
-    if uploaded_file is not None and st.session_state.db_path is None:
-        st.session_state.db_path = create_db_from_csv(uploaded_file)
-        st.session_state.table_info, column_stats = get_table_info(st.session_state.db_path)
-        embeddings = GoogleGenerativeAIEmbeddings(model="models/embedding-001")
-        st.session_state.vector_store = create_vector_store(st.session_state.table_info, embeddings)
-        st.success("Database created!")
-        
-    # Database info expander section
-    if st.session_state.db_path:
-        with st.expander("Database Information"):
-            tabs = st.tabs(["Preview", "Schema", "Statistics", "Visualization"])
+        if st.session_state.db_path:           
+            chat_model = ChatGoogleGenerativeAI(model="gemini-1.5-pro", temperature=0.3)
+            prompt = PromptTemplate(
+                input_variables=["context", "question", "history"],
+                template=prompt_template
+            )
             
-            with tabs[0]:  # Preview tab
-                if st.session_state.df_preview is not None:
-                    st.dataframe(st.session_state.df_preview)
+            chain = LLMChain(llm=chat_model, prompt=prompt)
             
-            with tabs[1]:  # Schema tab
-                if st.session_state.table_info:
-                    st.text(st.session_state.table_info)
-            
-            with tabs[2]:  # Statistics tab
-                if st.session_state.db_path:
-                    conn = sqlite3.connect(st.session_state.db_path)
-                    df = pd.read_sql_query("SELECT * FROM data_table", conn)
-                    conn.close()
+            # Chat interface with history management
+            col1, col2 = st.columns([3, 1])
+            with col1:
+                if question := st.chat_input("Ask a question"):
+                    # Check if this is a refinement request
+                    is_refinement = extract_sql_refinement_intent(question)
                     
-                    st.write("Numeric Column Statistics:")
-                    st.dataframe(df.describe())
-            
-            with tabs[3]:  # Visualization tab
-                schema_fig = create_schema_diagram()
-                if not schema_fig:
-                    st.info("Upload a CSV file with numeric data to see visualizations")
-
-    if st.session_state.db_path:           
-        chat_model = ChatGoogleGenerativeAI(model="gemini-1.5-pro", temperature=0.3)
-        prompt = PromptTemplate(
-            input_variables=["context", "question", "history"],
-            template=prompt_template
-        )
-        
-        chain = LLMChain(llm=chat_model, prompt=prompt)
-        
-        # Chat interface with history management
-        col1, col2 = st.columns([3, 1])
-        with col1:
-            if question := st.chat_input("Ask a question"):
-                # Check if this is a refinement request
-                is_refinement = extract_sql_refinement_intent(question)
-                
-                # Get previous SQL query if refinement is requested
-                previous_query = None
-                if is_refinement:
-                    for msg in reversed(st.session_state.messages):
-                        if msg["role"] == "assistant" and "SQL Query:" in msg["content"]:
-                            query_match = re.search(r'```sql\n(.*?)\n```', msg["content"], re.DOTALL)
-                            if query_match:
-                                previous_query = query_match.group(1)
-                                break
-                
-                # Add user message to chat
-                st.session_state.messages.append({"role": "user", "content": question})
-                
-                # Create chat history context for the model
-                history_text = ""
-                for msg in st.session_state.messages[-6:-1]:  # Last 5 messages excluding current
-                    if msg["role"] == "user":
-                        history_text += f"User: {msg['content']}\n"
-                    else:
-                        # Extract just the query part if it's an assistant message with SQL
-                        if "SQL Query:" in msg["content"]:
-                            query_match = re.search(r'```sql\n(.*?)\n```', msg["content"], re.DOTALL)
-                            if query_match:
-                                history_text += f"Assistant: Generated SQL: {query_match.group(1)}\n"
+                    # Get previous SQL query if refinement is requested
+                    previous_query = None
+                    if is_refinement:
+                        for msg in reversed(st.session_state.messages):
+                            if msg["role"] == "assistant" and "SQL Query:" in msg["content"]:
+                                query_match = re.search(r'```sql\n(.*?)\n```', msg["content"], re.DOTALL)
+                                if query_match:
+                                    previous_query = query_match.group(1)
+                                    break
+                    
+                    # Add user message to chat
+                    st.session_state.messages.append({"role": "user", "content": question})
+                    
+                    # Create chat history context for the model
+                    history_text = ""
+                    for msg in st.session_state.messages[-6:-1]:  # Last 5 messages excluding current
+                        if msg["role"] == "user":
+                            history_text += f"User: {msg['content']}\n"
+                        else:
+                            # Extract just the query part if it's an assistant message with SQL
+                            if "SQL Query:" in msg["content"]:
+                                query_match = re.search(r'```sql\n(.*?)\n```', msg["content"], re.DOTALL)
+                                if query_match:
+                                    history_text += f"Assistant: Generated SQL: {query_match.group(1)}\n"
+                                else:
+                                    history_text += f"Assistant: {msg['content']}\n"
                             else:
                                 history_text += f"Assistant: {msg['content']}\n"
+                    
+                    try:
+                        # Analyze the query for advanced understanding
+                        query_analysis = interpret_natural_query(question)
+                        
+                        # Get relevant database context
+                        docs = st.session_state.vector_store.similarity_search(question)
+                        context = "\n".join([doc.page_content for doc in docs])
+                        
+                        if is_refinement and previous_query:
+                            question = f"Refine this SQL query: {previous_query}\nNew requirements: {question}"
+                        
+                        # Generate SQL query
+                        sql_response = chain.run(context=context, question=question, history=history_text)
+                        
+                        if "cannot answer" in sql_response.lower():
+                            st.session_state.messages.append({"role": "assistant", "content": sql_response})
                         else:
-                            history_text += f"Assistant: {msg['content']}\n"
-                
-                try:
-                    # Analyze the query for advanced understanding
-                    query_analysis = interpret_natural_query(question)
-                    
-                    # Get relevant database context
-                    docs = st.session_state.vector_store.similarity_search(question)
-                    context = "\n".join([doc.page_content for doc in docs])
-                    
-                    if is_refinement and previous_query:
-                        question = f"Refine this SQL query: {previous_query}\nNew requirements: {question}"
-                    
-                    # Generate SQL query
-                    sql_response = chain.run(context=context, question=question, history=history_text)
-                    
-                    if "cannot answer" in sql_response.lower():
-                        st.session_state.messages.append({"role": "assistant", "content": sql_response})
-                    else:
-                        cleaned_query = clean_sql_query(sql_response)
-                        
-                        # Get query explanation
-                        explanation = get_query_explanation(cleaned_query)
-                        
-                        # Get query execution plan
-                        execution_plan = get_execution_plan(st.session_state.db_path, cleaned_query)
-                        
-                        # Execute query with timing
-                        results, exec_time = execute_sql_query(st.session_state.db_path, cleaned_query)
-                        
-                        # Generate optimization suggestions
-                        optimization = optimize_query(cleaned_query)
-                        
-                        # Generate follow-up questions
-                        follow_up_questions = generate_follow_up_questions(context, question, results)
-                        
-                        # Check if visualization is requested
-                        viz_requested = detect_visualization_request(question)
-                        
-                        if viz_requested:
-                            chart_type = identify_chart_type(question)
-                            fig, error = create_chart(results, chart_type)
+                            cleaned_query = clean_sql_query(sql_response)
                             
-                            if fig:
+                            # Get query explanation
+                            explanation = get_query_explanation(cleaned_query)
+                            
+                            # Get query execution plan
+                            execution_plan = get_execution_plan(st.session_state.db_path, cleaned_query)
+                            
+                            # Execute query with timing
+                            results, exec_time = execute_sql_query(st.session_state.db_path, cleaned_query)
+                            
+                            # Generate optimization suggestions
+                            optimization = optimize_query(cleaned_query)
+                            
+                            # Generate follow-up questions
+                            follow_up_questions = generate_follow_up_questions(context, question, results)
+                            
+                            # Check if visualization is requested
+                            viz_requested = detect_visualization_request(question)
+                            
+                            if viz_requested:
+                                chart_type = identify_chart_type(question)
+                                fig, error = create_chart(results, chart_type)
+                                
+                                if fig:
+                                    # Build response with query details
+                                    response = f"""
+    SQL Query:
+    ```sql
+    {cleaned_query}
+    ```
+    
+    Execution Time: {exec_time}s
+    
+    Results:
+    {results.to_markdown()}
+    
+    Explanation:
+    {explanation}
+                                    """
+                                    
+                                    st.session_state.messages.append({"role": "assistant", "content": response})
+                                    
+                                    # Store chart information in the message
+                                    st.session_state.messages.append({
+                                        "role": "assistant", 
+                                        "content": f"Here's a {chart_type} chart visualization of your data:",
+                                        "chart": {
+                                            "type": chart_type,
+                                            "data": results.to_dict('records')
+                                        }
+                                    })
+                                    
+                                    # Add follow-up questions if available
+                                    if follow_up_questions:
+                                        follow_up_text = "You might want to ask:\n\n" + "\n".join([f"- {q}" for q in follow_up_questions])
+                                        st.session_state.messages.append({"role": "assistant", "content": follow_up_text})
+                                    
+                                else:
+                                    response = f"""
+    SQL Query:
+    ```sql
+    {cleaned_query}
+    ```
+    
+    Execution Time: {exec_time}s
+    
+    Results:
+    {results.to_markdown()}
+    
+    Explanation:
+    {explanation}
+    
+    Couldn't create visualization: {error}
+                                    """
+                                    st.session_state.messages.append({"role": "assistant", "content": response})
+                            else:
                                 # Build response with query details
                                 response = f"""
-SQL Query:
-```sql
-{cleaned_query}
-```
-
-Execution Time: {exec_time}s
-
-Results:
-{results.to_markdown()}
-
-Explanation:
-{explanation}
+    SQL Query:
+    ```sql
+    {cleaned_query}
+    ```
+    
+    Execution Time: {exec_time}s
+    
+    Results:
+    {results.to_markdown()}
+    
+    Explanation:
+    {explanation}
                                 """
                                 
                                 st.session_state.messages.append({"role": "assistant", "content": response})
-                                
-                                # Store chart information in the message
-                                st.session_state.messages.append({
-                                    "role": "assistant", 
-                                    "content": f"Here's a {chart_type} chart visualization of your data:",
-                                    "chart": {
-                                        "type": chart_type,
-                                        "data": results.to_dict('records')
-                                    }
-                                })
                                 
                                 # Add follow-up questions if available
                                 if follow_up_questions:
                                     follow_up_text = "You might want to ask:\n\n" + "\n".join([f"- {q}" for q in follow_up_questions])
                                     st.session_state.messages.append({"role": "assistant", "content": follow_up_text})
-                                
-                            else:
-                                response = f"""
-SQL Query:
-```sql
-{cleaned_query}
-```
-
-Execution Time: {exec_time}s
-
-Results:
-{results.to_markdown()}
-
-Explanation:
-{explanation}
-
-Couldn't create visualization: {error}
-                                """
-                                st.session_state.messages.append({"role": "assistant", "content": response})
-                        else:
-                            # Build response with query details
-                            response = f"""
-SQL Query:
-```sql
-{cleaned_query}
-```
-
-Execution Time: {exec_time}s
-
-Results:
-{results.to_markdown()}
-
-Explanation:
-{explanation}
-                            """
                             
-                            st.session_state.messages.append({"role": "assistant", "content": response})
+                            # Store execution plan and optimization in session state
+                            st.session_state.execution_plan = execution_plan
+                            st.session_state.query_optimization = optimization
                             
-                            # Add follow-up questions if available
-                            if follow_up_questions:
-                                follow_up_text = "You might want to ask:\n\n" + "\n".join([f"- {q}" for q in follow_up_questions])
-                                st.session_state.messages.append({"role": "assistant", "content": follow_up_text})
-                        
-                        # Store execution plan and optimization in session state
-                        st.session_state.execution_plan = execution_plan
-                        st.session_state.query_optimization = optimization
-                        
-                        save_chat_history()
-                        
-                except Exception as e:
-                    st.session_state.messages.append({"role": "assistant", "content": f"Error: {str(e)}"})
-        
-        with col2:
-            col2_btns = st.columns(2)
-            with col2_btns[0]:
-                if st.button("Clear Chat"):
-                    clear_chat()
-            with col2_btns[1]:
-                if st.button("Save Query"):
-                    # Find the last SQL query in the chat
-                    last_query = None
-                    for msg in reversed(st.session_state.messages):
-                        if msg["role"] == "assistant" and "SQL Query:" in msg["content"]:
-                            query_match = re.search(r'```sql\n(.*?)\n```', msg["content"], re.DOTALL)
-                            if query_match:
-                                last_query = query_match.group(1)
-                                save_msg = save_to_favorites(last_query)
-                                st.success(save_msg)
-                                break
-                    if not last_query:
-                        st.error("No SQL query found to save")
+                            save_chat_history()
+                            
+                    except Exception as e:
+                        st.session_state.messages.append({"role": "assistant", "content": f"Error: {str(e)}"})
             
-            # Add optimization and execution plan expanders
-            if st.session_state.execution_plan:
-                with st.expander("Execution Plan"):
-                    st.text(st.session_state.execution_plan)
-            
-            if hasattr(st.session_state, 'query_optimization') and st.session_state.query_optimization:
-                with st.expander("Query Optimization"):
-                    st.markdown(st.session_state.query_optimization)
-        
-        # Display chat with visualization support
-        for idx, message in enumerate(st.session_state.messages):
-            with st.chat_message(message["role"]):
-                st.markdown(message["content"])
+            with col2:
+                col2_btns = st.columns(2)
+                with col2_btns[0]:
+                    if st.button("Clear Chat"):
+                        clear_chat()
+                with col2_btns[1]:
+                    if st.button("Save Query"):
+                        # Find the last SQL query in the chat
+                        last_query = None
+                        for msg in reversed(st.session_state.messages):
+                            if msg["role"] == "assistant" and "SQL Query:" in msg["content"]:
+                                query_match = re.search(r'```sql\n(.*?)\n```', msg["content"], re.DOTALL)
+                                if query_match:
+                                    last_query = query_match.group(1)
+                                    save_msg = save_to_favorites(last_query)
+                                    st.success(save_msg)
+                                    break
+                        if not last_query:
+                            st.error("No SQL query found to save")
                 
-                # If the message has a chart, display it
-                if "chart" in message:
-                    chart_data = pd.DataFrame.from_records(message["chart"]["data"])
-                    chart_type = message["chart"]["type"]
-                    fig, _ = create_chart(chart_data, chart_type)
-                    if fig:
-                        st.plotly_chart(fig, use_container_width=True)
+                # Add optimization and execution plan expanders
+                if st.session_state.execution_plan:
+                    with st.expander("Execution Plan"):
+                        st.text(st.session_state.execution_plan)
+                
+                if hasattr(st.session_state, 'query_optimization') and st.session_state.query_optimization:
+                    with st.expander("Query Optimization"):
+                        st.markdown(st.session_state.query_optimization)
+            
+            # Display chat with visualization support
+            for idx, message in enumerate(st.session_state.messages):
+                with st.chat_message(message["role"]):
+                    st.markdown(message["content"])
+                    
+                    # If the message has a chart, display it
+                    if "chart" in message:
+                        chart_data = pd.DataFrame.from_records(message["chart"]["data"])
+                        chart_type = message["chart"]["type"]
+                        fig, _ = create_chart(chart_data, chart_type)
+                        if fig:
+                            st.plotly_chart(fig, use_container_width=True)
 
 # Cleanup
 def cleanup():
