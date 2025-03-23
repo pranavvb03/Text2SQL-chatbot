@@ -721,7 +721,7 @@ if 'use_case' not in st.session_state or st.session_state.use_case is None:
     with col1:
         with st.container():
             st.markdown("""
-                <div style="padding: 16px; border-radius: 8px; background-color: #f0f2f6; margin-bottom: 16px;">
+                <div style="padding: 16px; border-radius: 8px; background-color: #fefbd8; margin-bottom: 16px;">
                     <h3>Sales Analysis</h3>
                     <p>Analyze sales data to identify trends, top-performing products, and customer behavior.</p>
                 </div>
@@ -732,7 +732,7 @@ if 'use_case' not in st.session_state or st.session_state.use_case is None:
 
         with st.container():
             st.markdown("""
-                <div style="padding: 16px; border-radius: 8px; background-color: #f0f2f6; margin-bottom: 16px;">
+                <div style="padding: 16px; border-radius: 8px; background-color: #fefbd8; margin-bottom: 16px;">
                     <h3>Customer Segmentation</h3>
                     <p>Segment customers based on their behavior, demographics, and purchase history.</p>
                 </div>
@@ -744,7 +744,7 @@ if 'use_case' not in st.session_state or st.session_state.use_case is None:
     with col2:
         with st.container():
             st.markdown("""
-                <div style="padding: 16px; border-radius: 8px; background-color: #f0f2f6; margin-bottom: 16px;">
+                <div style="padding: 16px; border-radius: 8px; background-color: #fefbd8; margin-bottom: 16px;">
                     <h3>Inventory Management</h3>
                     <p>Manage and analyze inventory data to optimize stock levels.</p>
                 </div>
@@ -755,7 +755,7 @@ if 'use_case' not in st.session_state or st.session_state.use_case is None:
 
         with st.container():
             st.markdown("""
-                <div style="padding: 16px; border-radius: 8px; background-color: #f0f2f6; margin-bottom: 16px;">
+                <div style="padding: 16px; border-radius: 8px; background-color: #fefbd8; margin-bottom: 16px;">
                     <h3>Healthcare Analytics</h3>
                     <p>Analyze healthcare data for patient outcomes, treatment efficacy, and operational efficiency.</p>
                 </div>
@@ -766,7 +766,7 @@ if 'use_case' not in st.session_state or st.session_state.use_case is None:
 
         with st.container():
             st.markdown("""
-                <div style="padding: 16px; border-radius: 8px; background-color: #f0f2f6; margin-bottom: 16px;">
+                <div style="padding: 16px; border-radius: 8px; background-color: #fefbd8; margin-bottom: 16px;">
                     <h3>Finance Analytics</h3>
                     <p>Analyze financial transactions, detect fraud, and evaluate profitability.</p>
                 </div>
