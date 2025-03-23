@@ -761,24 +761,6 @@ if 'use_case' not in st.session_state or st.session_state.use_case is None:
         st.session_state.use_case = use_case
         st.rerun()
 
-# if st.session_state.use_case:
-#     prompt_template = USE_CASES[st.session_state.use_case]['prompt_template']
-# else:
-#     prompt_template = """
-#     You are a SQL expert. Generate a SQL query based on the following database information, conversation history, and question:
-    
-#     Database Information:
-#     {context}
-    
-#     Previous Conversation:
-#     {history}
-    
-#     User Question: {question}
-    
-#     Return ONLY the SQL query without any explanations or decorations.
-#     If you cannot generate a valid query, respond with "I cannot answer this question with the available data."
-#     """
-    
 # Sidebar for navigation and features
 with st.sidebar:
     st.title("Navigation")
@@ -1005,7 +987,9 @@ Explanation:
 {explanation}
 
 Accuracy Metrics:
+
 Semantic Similarity: {similarity_score:.2f}
+
 Validation: {validation_message}
                                     """
                                     
@@ -1047,7 +1031,9 @@ Explanation:
 {explanation}
 
 Accuracy Metrics:
+
 Semantic Similarity: {similarity_score:.2f}
+
 Validation: {validation_message}
 
 Couldn't create visualization: {error}
@@ -1070,7 +1056,9 @@ Explanation:
 {explanation}
 
 Accuracy Metrics:
+
 Semantic Similarity: {similarity_score:.2f}
+
 Validation: {validation_message}
                                 """
                                 
