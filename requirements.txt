@@ -10,4 +10,4 @@ python-dotenv
 tabulate
 matplotlib 
 plotly
-sklearn
+scikit-learn
