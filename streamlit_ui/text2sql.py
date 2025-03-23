@@ -6,6 +6,7 @@ import pandas as pd
 import re
 import sqlite3
 import os
+from sklearn.metrics.pairwise import cosine_similarity
 from langchain_google_genai import ChatGoogleGenerativeAI, GoogleGenerativeAIEmbeddings
 from langchain.schema.messages import HumanMessage, SystemMessage
 from langchain_community.vectorstores import FAISS
@@ -21,6 +22,7 @@ import plotly.graph_objects as go
 import json
 import time
 
+embeddings = GoogleGenerativeAIEmbeddings(model="models/embedding-001")
 USE_CASES = {
     "Sales Analysis": {
         "description": "Analyze sales data to identify trends, top-performing products, and customer behavior.",
@@ -178,6 +180,42 @@ if not st.session_state.query_templates:
 # Set your Google API key
 GOOGLE_API_KEY = st.secrets['GOOGLE_API_KEY']
 genai.configure(api_key=GOOGLE_API_KEY)
+
+def measure_semantic_similarity(question, sql_query):
+    """
+    Measure the semantic similarity between the user's question and the SQL query's intent.
+    """
+    # Generate embeddings for the question and SQL query
+    question_embedding = embeddings.embed_query(question)
+    sql_embedding = embeddings.embed_query(sql_query)
+    
+    # Calculate cosine similarity
+    similarity = cosine_similarity([question_embedding], [sql_embedding])[0][0]
+    return similarity
+
+def validate_query_results(results, question):
+    """
+    Validate the results of the SQL query based on the user's question.
+    """
+    validation_message = ""
+    
+    # Rule 1: Check if the query is supposed to return a limited number of rows
+    if "top" in question.lower() or "limit" in question.lower():
+        expected_limit = int(re.search(r'top\s+(\d+)', question.lower()).group(1)) if re.search(r'top\s+(\d+)', question.lower()) else 5
+        if len(results) > expected_limit:
+            validation_message += f"⚠️ Expected at most {expected_limit} rows, but got {len(results)}.\n"
+    
+    # Rule 2: Check if the query is supposed to be sorted
+    if "sort" in question.lower() or "order" in question.lower():
+        if not results.equals(results.sort_values(by=results.columns[0], ascending=False)):
+            validation_message += "⚠️ Results are not sorted as expected.\n"
+    
+    # Rule 3: Check if the query is supposed to filter data
+    if "where" in question.lower() or "filter" in question.lower():
+        if len(results) == 0:
+            validation_message += "⚠️ No results found after filtering. Check the filter conditions.\n"
+    
+    return validation_message if validation_message else "✅ Results are valid."
 
 def save_chat_history():
     """Save current chat to history"""
@@ -714,66 +752,14 @@ st.write("Upload a CSV file to create a database and ask questions in natural la
 
 if 'use_case' not in st.session_state or st.session_state.use_case is None:
     st.write("### Select a Use Case")
-    st.write("Choose a use case to get started.")
-
-    # Define use case cards in a grid layout
-    col1, col2 = st.columns(2)
-    with col1:
-        with st.container():
-            st.markdown("""
-                <div style="padding: 16px; border-radius: 8px; background-color: #fefbd8; margin-bottom: 16px;">
-                    <h3>Sales Analysis</h3>
-                    <p>Analyze sales data to identify trends, top-performing products, and customer behavior.</p>
-                </div>
-            """, unsafe_allow_html=True)
-            if st.button("Select Sales Analysis", key="sales_analysis"):
-                st.session_state.use_case = "Sales Analysis"
-                st.rerun()
-
-        with st.container():
-            st.markdown("""
-                <div style="padding: 16px; border-radius: 8px; background-color: #fefbd8; margin-bottom: 16px;">
-                    <h3>Customer Segmentation</h3>
-                    <p>Segment customers based on their behavior, demographics, and purchase history.</p>
-                </div>
-            """, unsafe_allow_html=True)
-            if st.button("Select Customer Segmentation", key="customer_segmentation"):
-                st.session_state.use_case = "Customer Segmentation"
-                st.rerun()
-
-    with col2:
-        with st.container():
-            st.markdown("""
-                <div style="padding: 16px; border-radius: 8px; background-color: #fefbd8; margin-bottom: 16px;">
-                    <h3>Inventory Management</h3>
-                    <p>Manage and analyze inventory data to optimize stock levels.</p>
-                </div>
-            """, unsafe_allow_html=True)
-            if st.button("Select Inventory Management", key="inventory_management"):
-                st.session_state.use_case = "Inventory Management"
-                st.rerun()
-
-        with st.container():
-            st.markdown("""
-                <div style="padding: 16px; border-radius: 8px; background-color: #fefbd8; margin-bottom: 16px;">
-                    <h3>Healthcare Analytics</h3>
-                    <p>Analyze healthcare data for patient outcomes, treatment efficacy, and operational efficiency.</p>
-                </div>
-            """, unsafe_allow_html=True)
-            if st.button("Select Healthcare Analytics", key="healthcare_analytics"):
-                st.session_state.use_case = "Healthcare Analytics"
-                st.rerun()
-
-        with st.container():
-            st.markdown("""
-                <div style="padding: 16px; border-radius: 8px; background-color: #fefbd8; margin-bottom: 16px;">
-                    <h3>Finance Analytics</h3>
-                    <p>Analyze financial transactions, detect fraud, and evaluate profitability.</p>
-                </div>
-            """, unsafe_allow_html=True)
-            if st.button("Select Finance Analytics", key="finance_analytics"):
-                st.session_state.use_case = "Finance Analytics"
-                st.rerun()
+    use_case = st.selectbox(
+        "Choose a use case to get started", 
+        list(USE_CASES.keys()), 
+        format_func=lambda x: f"{x} - {USE_CASES[x]['description']}"
+    )
+    if st.button("Set Use Case"):
+        st.session_state.use_case = use_case
+        st.rerun()
 
 # if st.session_state.use_case:
 #     prompt_template = USE_CASES[st.session_state.use_case]['prompt_template']
@@ -991,6 +977,9 @@ if st.session_state.use_case:
                             
                             # Generate follow-up questions
                             follow_up_questions = generate_follow_up_questions(context, question, results)
+
+                            similarity_score = measure_semantic_similarity(question, cleaned_query)
+                            validation_message = validate_query_results(results, question)
                             
                             # Check if visualization is requested
                             viz_requested = detect_visualization_request(question)
@@ -1014,6 +1003,10 @@ Results:
 
 Explanation:
 {explanation}
+
+Accuracy Metrics:
+Semantic Similarity: {similarity_score:.2f}
+Validation: {validation_message}
                                     """
                                     
                                     st.session_state.messages.append({"role": "assistant", "content": response})
@@ -1053,6 +1046,10 @@ Results:
 Explanation:
 {explanation}
 
+Accuracy Metrics:
+Semantic Similarity: {similarity_score:.2f}
+Validation: {validation_message}
+
 Couldn't create visualization: {error}
                                     """
                                     st.session_state.messages.append({"role": "assistant", "content": response})
@@ -1071,6 +1068,10 @@ Results:
 
 Explanation:
 {explanation}
+
+Accuracy Metrics:
+Semantic Similarity: {similarity_score:.2f}
+Validation: {validation_message}
                                 """
                                 
                                 st.session_state.messages.append({"role": "assistant", "content": response})
