@@ -713,15 +713,68 @@ st.title("Advanced Text2SQL Chatbot")
 st.write("Upload a CSV file to create a database and ask questions in natural language!")
 
 if 'use_case' not in st.session_state or st.session_state.use_case is None:
-    st.subheader("Select Use Case")
-    use_case = st.selectbox(
-        "Choose a use case", 
-        list(USE_CASES.keys()), 
-        format_func=lambda x: f"{x} - {USE_CASES[x]['description']}"
-    )
-    if st.button("Set Use Case"):
-        st.session_state.use_case = use_case
-        st.rerun()
+    st.write("### Select a Use Case")
+    st.write("Choose a use case to get started.")
+
+    # Define use case cards in a grid layout
+    col1, col2 = st.columns(2)
+    with col1:
+        with st.container():
+            st.markdown("""
+                <div style="padding: 16px; border-radius: 8px; background-color: #f0f2f6; margin-bottom: 16px;">
+                    <h3>Sales Analysis</h3>
+                    <p>Analyze sales data to identify trends, top-performing products, and customer behavior.</p>
+                </div>
+            """, unsafe_allow_html=True)
+            if st.button("Select Sales Analysis", key="sales_analysis"):
+                st.session_state.use_case = "Sales Analysis"
+                st.rerun()
+
+        with st.container():
+            st.markdown("""
+                <div style="padding: 16px; border-radius: 8px; background-color: #f0f2f6; margin-bottom: 16px;">
+                    <h3>Customer Segmentation</h3>
+                    <p>Segment customers based on their behavior, demographics, and purchase history.</p>
+                </div>
+            """, unsafe_allow_html=True)
+            if st.button("Select Customer Segmentation", key="customer_segmentation"):
+                st.session_state.use_case = "Customer Segmentation"
+                st.rerun()
+
+    with col2:
+        with st.container():
+            st.markdown("""
+                <div style="padding: 16px; border-radius: 8px; background-color: #f0f2f6; margin-bottom: 16px;">
+                    <h3>Inventory Management</h3>
+                    <p>Manage and analyze inventory data to optimize stock levels.</p>
+                </div>
+            """, unsafe_allow_html=True)
+            if st.button("Select Inventory Management", key="inventory_management"):
+                st.session_state.use_case = "Inventory Management"
+                st.rerun()
+
+        with st.container():
+            st.markdown("""
+                <div style="padding: 16px; border-radius: 8px; background-color: #f0f2f6; margin-bottom: 16px;">
+                    <h3>Healthcare Analytics</h3>
+                    <p>Analyze healthcare data for patient outcomes, treatment efficacy, and operational efficiency.</p>
+                </div>
+            """, unsafe_allow_html=True)
+            if st.button("Select Healthcare Analytics", key="healthcare_analytics"):
+                st.session_state.use_case = "Healthcare Analytics"
+                st.rerun()
+
+        with st.container():
+            st.markdown("""
+                <div style="padding: 16px; border-radius: 8px; background-color: #f0f2f6; margin-bottom: 16px;">
+                    <h3>Finance Analytics</h3>
+                    <p>Analyze financial transactions, detect fraud, and evaluate profitability.</p>
+                </div>
+            """, unsafe_allow_html=True)
+            if st.button("Select Finance Analytics", key="finance_analytics"):
+                st.session_state.use_case = "Finance Analytics"
+                st.rerun()
+
 # if st.session_state.use_case:
 #     prompt_template = USE_CASES[st.session_state.use_case]['prompt_template']
 # else:
