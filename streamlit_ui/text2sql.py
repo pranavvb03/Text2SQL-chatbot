@@ -24,7 +24,7 @@ import time
 
 embeddings = GoogleGenerativeAIEmbeddings(model="models/embedding-001")
 USE_CASES = {
-    "Sales Analysis": {
+    "E-commerce and Sales Analysis": {
         "description": "Analyze sales data to identify trends, top-performing products, and customer behavior.",
         "prompt_template": """
         You are a sales analyst. Generate a SQL query to analyze sales data based on the following database information, conversation history, and question.
@@ -46,31 +46,6 @@ USE_CASES = {
         Return ONLY the SQL query without any explanations or decorations.
         If you cannot generate a valid query, respond with "I cannot answer this question with the available data."
         
-        Response:
-        """
-    },
-    "Customer Segmentation": {
-        "description": "Segment customers based on their behavior, demographics, and purchase history.",
-        "prompt_template": """
-        You are a marketing analyst. Generate a SQL query to segment customers based on the following database information, conversation history, and question.
-        
-        Database Information:
-        {context}
-        
-        Previous Conversation:
-        {history}
-        
-        User Question: {question}
-        
-        Focus on:
-        - RFM (Recency, Frequency, Monetary) analysis
-        - Demographic segmentation (age, gender, location)
-        - Behavioral segmentation (purchase frequency, product preferences)
-        - Customer lifetime value (CLV) analysis
-        
-        Return ONLY the SQL query without any explanations or decorations.
-        If you cannot generate a valid query, respond with "I cannot answer this question with the available data."
-
         Response:
         """
     },
@@ -121,6 +96,32 @@ USE_CASES = {
         Return ONLY the SQL query without any explanations or decorations.
         If you cannot generate a valid query, respond with "I cannot answer this question with the available data."
 
+        Response:
+        """
+    },
+    "Education and Learning Management Systems": {
+        "description": "Analyze student performance, course engagement, and learning outcomes across educational programs.",
+        "prompt_template": """
+        You are an education data analyst. Generate a SQL query to analyze learning management data based on the following database information, conversation history, and question.
+        
+        Database Information:
+        {context}
+        
+        Previous Conversation:
+        {history}
+        
+        User Question: {question}
+        
+        Focus on:
+        - Student performance across subjects or assessments
+        - Course completion and engagement rates
+        - Instructor-wise performance trends
+        - Attendance, participation, and grading insights
+        - Learning outcome metrics
+        
+        Return ONLY the SQL query without any explanations or decorations.
+        If you cannot generate a valid query, respond with "I cannot answer this question with the available data."
+        
         Response:
         """
     },
