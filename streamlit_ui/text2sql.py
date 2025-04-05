@@ -345,7 +345,7 @@ def get_query_explanation(query: str) -> str:
     chat_model = ChatGoogleGenerativeAI(model="gemini-1.5-pro", temperature=0.3)
     use_case_context = ""
     if st.session_state.use_case and st.session_state.use_case in USE_CASES:
-        use_case_context = f"{USE_CASES[st.session_state.use_case]['description']} analysis. 
+        use_case_context = f"{USE_CASES[st.session_state.use_case]['description']} analysis." 
 
     explain_prompt = PromptTemplate(
         input_variables=["query", "use_case_context"],
@@ -357,7 +357,7 @@ def get_query_explanation(query: str) -> str:
         ```
         
         Provide a clear explanation that a non-technical person could understand,that includes:
-             1. A high-level summary of what the query accomplishes in business terms.
+             1. A high-level summary of what the query accomplishes in business terms as per the use case.
              2. A breakdown of each major component (SELECT, FROM, JOIN, WHERE, GROUP BY, etc.)
              3. How this query addresses the specific business need, by providing appropriate examples or analogies to make it more understandable.
         """
@@ -384,7 +384,15 @@ def optimize_query(query: str) -> str:
         {query}
         ```
         
-        Provide specific suggestions to improve performance, readability, and efficiency.
+        Please provide:
+            1. Performance optimizations (suggest 2-3 specific changes with expected impact)
+            2. Index recommendations (which columns would benefit from indexes)
+            3. Query structure improvements (subqueries, joins, etc.)
+            4. Readability enhancements (formatting, naming, comments)
+        For each suggestion, explain:
+            - What specific change to make
+            - Why it would improve performance
+            - Estimated impact on query execution time
         """
     )
     
