@@ -343,24 +343,30 @@ def get_table_info(db_path: str) -> str:
 def get_query_explanation(query: str) -> str:
     """Get natural language explanation of SQL query"""
     chat_model = ChatGoogleGenerativeAI(model="gemini-1.5-pro", temperature=0.3)
-    
+    use_case_context = ""
+    if st.session_state.use_case and st.session_state.use_case in USE_CASES:
+        use_case_context = f"{USE_CASES[st.session_state.use_case]['description']} analysis. 
+
     explain_prompt = PromptTemplate(
-        input_variables=["query"],
+        input_variables=["query", "use_case_context"],
         template="""
-        Explain the following SQL query in simple terms, breaking down each component:
+        {use_case_context} Explain the following SQL query in simple terms, breaking down each component:
         
         ```sql
         {query}
         ```
         
-        Provide a clear explanation that a non-technical person could understand.
+        Provide a clear explanation that a non-technical person could understand,that includes:
+             1. A high-level summary of what the query accomplishes in business terms.
+             2. A breakdown of each major component (SELECT, FROM, JOIN, WHERE, GROUP BY, etc.)
+             3. How this query addresses the specific business need, by providing appropriate examples or analogies to make it more understandable.
         """
     )
     
     explain_chain = LLMChain(llm=chat_model, prompt=explain_prompt)
     
     try:
-        explanation = explain_chain.run(query=query)
+        explanation = explain_chain.run(query=query, use_case_context=use_case_context)
         return explanation
     except Exception as e:
         return f"Could not generate explanation: {str(e)}"
@@ -697,54 +703,54 @@ def generate_follow_up_questions(context, question, result_df):
             return [q.strip() for q in follow_ups.split(',') if q.strip()]
         except Exception as e:       
             if "ResourceExhausted" in str(e) or "429" in str(e):
-                wait_time = (attempt + 1) * 2  # Exponential backoff (2s, 4s, 6s)
+                wait_time = (attempt + 1) * 2  
                 logging.info(f"Retrying in {wait_time} seconds...")
                 time.sleep(wait_time)
             else:
                 break
     return ["Would you like to refine your query?", "Do you want to include more columns?", "Should I use different filtering criteria?"]
     
-def interpret_natural_query(question):
-    """Advanced query interpretation to extract dimensions, metrics, etc."""
-    chat_model = ChatGoogleGenerativeAI(model="gemini-1.5-pro", temperature=0.3)
+# def interpret_natural_query(question):
+#     """Advanced query interpretation to extract dimensions, metrics, etc."""
+#     chat_model = ChatGoogleGenerativeAI(model="gemini-1.5-pro", temperature=0.3)
     
-    interpret_prompt = PromptTemplate(
-        input_variables=["question"],
-        template="""
-        Analyze this natural language query and extract the key elements:
+#     interpret_prompt = PromptTemplate(
+#         input_variables=["question"],
+#         template="""
+#         Analyze this natural language query and extract the key elements:
         
-        "{question}"
+#         "{question}"
         
-        Return a JSON object with the following structure:
-        {{
-          "intent": "filter|aggregation|comparison|trend|visualization|other",
-          "dimensions": ["dimension1", "dimension2"],
-          "metrics": ["metric1", "metric2"],
-          "filters": ["filter1", "filter2"],
-          "time_period": "time period if specified"
-        }}
+#         Return a JSON object with the following structure:
+#         {{
+#           "intent": "filter|aggregation|comparison|trend|visualization|other",
+#           "dimensions": ["dimension1", "dimension2"],
+#           "metrics": ["metric1", "metric2"],
+#           "filters": ["filter1", "filter2"],
+#           "time_period": "time period if specified"
+#         }}
         
-        Return ONLY the JSON without any explanation.
-        """
-    )
+#         Return ONLY the JSON without any explanation.
+#         """
+#     )
     
-    interpret_chain = LLMChain(llm=chat_model, prompt=interpret_prompt)
+#     interpret_chain = LLMChain(llm=chat_model, prompt=interpret_prompt)
     
-    try:
-        interpretation = interpret_chain.run(question=question)
-        # Extract just the JSON part
-        json_match = re.search(r'({.*})', interpretation, re.DOTALL)
-        if json_match:
-            interpretation = json_match.group(1)
-        return json.loads(interpretation)
-    except Exception as e:
-        return {
-            "intent": "other",
-            "dimensions": [],
-            "metrics": [],
-            "filters": [],
-            "time_period": ""
-        }
+#     try:
+#         interpretation = interpret_chain.run(question=question)
+#         # Extract just the JSON part
+#         json_match = re.search(r'({.*})', interpretation, re.DOTALL)
+#         if json_match:
+#             interpretation = json_match.group(1)
+#         return json.loads(interpretation)
+#     except Exception as e:
+#         return {
+#             "intent": "other",
+#             "dimensions": [],
+#             "metrics": [],
+#             "filters": [],
+#             "time_period": ""
+#         }
 
 # Create Streamlit interface
 st.title("Advanced Text2SQL Chatbot")
@@ -927,9 +933,7 @@ if st.session_state.use_case:
                                 history_text += f"Assistant: {msg['content']}\n"
                     
                     try:
-                        # Analyze the query for advanced understanding
-                        query_analysis = interpret_natural_query(question)
-                        
+
                         # Get relevant database context
                         docs = st.session_state.vector_store.similarity_search(question)
                         context = "\n".join([doc.page_content for doc in docs])
