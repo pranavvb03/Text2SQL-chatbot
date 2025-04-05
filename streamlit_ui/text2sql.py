@@ -298,14 +298,14 @@ def get_table_info(db_path: str) -> str:
         distinct_count = cursor.fetchone()[0]
         
         # Get samples
-        cursor.execute(f"SELECT {col_name} FROM data_table LIMIT 3;")
+        cursor.execute(f"SELECT [{col_name}] FROM data_table LIMIT 3;")
         samples = [str(row[0]) for row in cursor.fetchall()]
         
         # Get min, max for numeric columns
         min_val = max_val = avg_val = None
         if col_type in ['INTEGER', 'REAL', 'FLOAT', 'DOUBLE']:
             try:
-                cursor.execute(f"SELECT MIN({col_name}), MAX({col_name}), AVG({col_name}) FROM data_table;")
+                cursor.execute(f"SELECT MIN([{col_name}]), MAX([{col_name}]), AVG([{col_name}]) FROM data_table;")
                 min_val, max_val, avg_val = cursor.fetchone()
                 stats = f"Min: {min_val}, Max: {max_val}, Avg: {round(avg_val, 2) if avg_val is not None else 'N/A'}"
             except:
@@ -313,7 +313,7 @@ def get_table_info(db_path: str) -> str:
         else:
             stats = "Non-numeric column"
         
-        column_info.append(f"Column '{col_name}' (Type: {col_type}, Distinct Values: {distinct_count}, Examples: {', '.join(samples)})")
+        column_info.append(f"Column '[{col_name}]' (Type: [{col_name}], Distinct Values: {distinct_count}, Examples: {', '.join(samples)})")
         column_stats.append({
             "name": col_name,
             "type": col_type,
