@@ -294,7 +294,7 @@ def get_table_info(db_path: str) -> str:
         col_type = col[2]
         
         # Get distinct count
-        cursor.execute(f"SELECT COUNT(DISTINCT {col_name}) FROM data_table;")
+        cursor.execute(f"SELECT COUNT(DISTINCT [{col_name}]) FROM data_table;")
         distinct_count = cursor.fetchone()[0]
         
         # Get samples
