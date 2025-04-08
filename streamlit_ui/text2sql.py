@@ -665,6 +665,7 @@ def create_schema_diagram():
         
         # Get only numeric columns for correlation analysis
         numeric_cols = df.select_dtypes(include=[np.number]).columns.tolist()
+        numeric_cols = [col for col in numeric_cols if not col.lower().endswith('_id')]
         
         if len(numeric_cols) < 2:
             st.info("Need at least two numeric columns for visualizations")
@@ -685,6 +686,15 @@ def create_schema_diagram():
                     colorscale='Spectral_r',
                     zmin=-1, zmax=1
                 ))
+                 for i in range(len(corr)):
+                    for j in range(len(corr.columns)):
+                        fig.add_annotation(
+                            x=corr.columns[j],
+                            y=corr.columns[i],
+                            text=str(round(corr.iloc[i, j], 2)),
+                            showarrow=False,
+                            font=dict(color="black" if abs(corr.iloc[i, j]) < 0.5 else "white")
+                        )
                 
                 fig.update_layout(
                     title="Correlation Matrix",
