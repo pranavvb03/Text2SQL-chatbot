@@ -686,7 +686,7 @@ def create_schema_diagram():
                     colorscale='Spectral_r',
                     zmin=-1, zmax=1
                 ))
-                 for i in range(len(corr)):
+                for i in range(len(corr)):
                     for j in range(len(corr.columns)):
                         fig.add_annotation(
                             x=corr.columns[j],
