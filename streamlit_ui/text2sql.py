@@ -74,7 +74,7 @@ USE_CASES = {
         Response:
         """
     },
-    "Healthcare Analytics": {
+    "Healthcare and Medical Monitoring": {
         "description": "Analyze healthcare data for patient outcomes, treatment efficacy, and operational efficiency.",
         "prompt_template": """
         You are a healthcare analyst. Generate a SQL query to analyze healthcare data based on the following database information, conversation history, and question.
@@ -125,7 +125,7 @@ USE_CASES = {
         Response:
         """
     },
-    "Finance Analytics": {
+    "Banking and Finance": {
         "description": "Analyze financial transactions, detect fraud, and evaluate profitability.",
         "prompt_template": """
         You are a finance analyst. Generate a SQL query to analyze financial data based on the following database information, conversation history, and question.
@@ -152,6 +152,33 @@ USE_CASES = {
 
         Response:
         """
+    },
+    "Agriculture": {
+    "description": "Analyze crop yields, optimize resource usage, track livestock health, and monitor farm operations.",
+    "prompt_template": """
+    You are an expert agricultural data analyst. Generate a SQL query to analyze farming data based on the following database information, conversation history, and question.
+    
+    Database Information:
+    {context}
+    
+    Previous Conversation:
+    {history}
+    
+    User Question: {question}
+    
+    Focus on:
+    - Crop yield analysis
+    - Resource utilization (water, fertilizer, pesticides)
+    - Weather impact correlation
+    - Livestock health monitoring
+    - Equipment efficiency tracking
+    - Soil quality assessment
+    - Sustainable farming metrics
+    
+    Return ONLY the SQL query without any explanations or decorations.
+    If you cannot generate a valid query, respond with "I cannot answer this question with the available data."
+    Response:
+    """
     }
 }
 # Initialize session state variables
@@ -346,7 +373,7 @@ def get_query_explanation(query: str) -> str:
     chat_model = ChatGoogleGenerativeAI(model="gemini-1.5-pro", temperature=0.3)
     use_case_context = ""
     if st.session_state.use_case and st.session_state.use_case in USE_CASES:
-        use_case_context = f"{USE_CASES[st.session_state.use_case]['description']} analysis." 
+        use_case_context = f"{USE_CASES[st.session_state.use_case]['description']}" 
 
     explain_prompt = PromptTemplate(
         input_variables=["query", "use_case_context"],
@@ -1169,7 +1196,6 @@ Validation: {validation_message}
                         if fig:
                             st.plotly_chart(fig, use_container_width=True)
 
-# Cleanup
 def cleanup():
     if st.session_state.db_path and os.path.exists(st.session_state.db_path):
         os.unlink(st.session_state.db_path)
