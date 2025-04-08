@@ -682,7 +682,7 @@ def create_schema_diagram():
                     z=corr.values,
                     x=corr.columns,
                     y=corr.columns,
-                    colorscale='Viridis',
+                    colorscale='Spectral_r',
                     zmin=-1, zmax=1
                 ))
                 
