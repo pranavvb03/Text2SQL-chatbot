@@ -477,9 +477,14 @@ def create_chart(df, chart_type):
         # Try to identify good candidates for x and y axes
         numeric_cols = df.select_dtypes(include=['number']).columns.tolist()
         non_numeric_cols = df.select_dtypes(exclude=['number']).columns.tolist()
+        datetime_cols = df.select_dtypes(include=['datetime64']).columns.tolist()
         
-        # For charts that need category/time data for x-axis
-        x_col = non_numeric_cols[0] if non_numeric_cols else df.columns[0]
+        if datetime_cols:
+            x_col = datetime_cols[0]  # Prefer datetime columns for time series
+        elif non_numeric_cols:
+            x_col = non_numeric_cols[0]
+        else:
+            x_col = df.columns[0]
         
         # For charts that need numeric data for y-axis
         y_col = numeric_cols[0] if numeric_cols else df.columns[1] if len(df.columns) > 1 else df.columns[0]
@@ -526,13 +531,40 @@ def create_chart(df, chart_type):
             else:
                 return None, "Cannot create heatmap: Need at least 1 numeric column and 2 categorical columns"
         
-        elif chart_type == "bubble":
-            if len(numeric_cols) >= 3:
-                fig = px.scatter(df, x=numeric_cols[0], y=numeric_cols[1], size=numeric_cols[2],
-                               title=f"Bubble Chart: {numeric_cols[1]} vs {numeric_cols[0]} (size: {numeric_cols[2]})")
-                return fig, None
+        elif chart_type == "time series":
+            if not datetime_cols:
+                try:
+                    df = df.copy() 
+                    df[x_col] = pd.to_datetime(df[x_col])
+                    x_is_date = True
+                except:
+                    x_is_date = False
+                    return None, "Cannot create time series chart: No datetime column found and could not convert column to datetime"
             else:
-                return None, "Cannot create bubble chart: Need at least 3 numeric columns"
+                x_is_date = True
+                x_col = datetime_cols[0]
+            
+            if x_is_date:
+                if len(numeric_cols) > 1:
+                    fig = px.line(df, x=x_col, y=numeric_cols, title=f"Time Series: Values over {x_col}")
+                else:
+                    fig = px.line(df, x=x_col, y=y_col, title=f"Time Series: {y_col} over Time")
+                
+                # Customize the time series chart
+                fig.update_xaxes(
+                    title_text='Time',
+                    rangeslider_visible=True,
+                    rangeselector=dict(
+                        buttons=list([
+                            dict(count=7, label="1w", step="day", stepmode="backward"),
+                            dict(count=1, label="1m", step="month", stepmode="backward"),
+                            dict(count=6, label="6m", step="month", stepmode="backward"),
+                            dict(count=1, label="1y", step="year", stepmode="backward"),
+                            dict(step="all")
+                        ])
+                    )
+                )
+                return fig, None
         
         else:
             return None, f"Unsupported chart type: {chart_type}"
@@ -546,7 +578,7 @@ def detect_visualization_request(question):
         "visualize", "visualization", "plot", "chart", "graph", "diagram",
         "show me a chart", "display a graph", "create a plot", "draw a",
         "bar chart", "pie chart", "line graph", "histogram", "scatter plot",
-        "heatmap", "bubble chart"
+        "heatmap", "time series"
     ]
     
     question_lower = question.lower()
@@ -566,7 +598,7 @@ def identify_chart_type(question):
         "scatter": ["scatter plot", "scatter graph", "scatter chart"],
         "histogram": ["histogram", "distribution chart"],
         "heatmap": ["heatmap", "heat map", "correlation matrix"],
-        "bubble": ["bubble chart", "bubble plot", "bubble graph"]
+        "time series": ["time series chart", "time series analysis", "time series plot"]
     }
     
     for chart_type, keywords in chart_types.items():
