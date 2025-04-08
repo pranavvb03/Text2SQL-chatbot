@@ -544,19 +544,6 @@ def create_chart(df, chart_type):
                 return fig, None
             else:
                 return None, "Cannot create histogram: No numeric columns found"
-                
-        elif chart_type == "heatmap":
-            if len(numeric_cols) >= 1 and len(non_numeric_cols) >= 2:
-                pivot = df.pivot_table(
-                    values=numeric_cols[0], 
-                    index=non_numeric_cols[0], 
-                    columns=non_numeric_cols[1], 
-                    aggfunc='mean'
-                )
-                fig = px.imshow(pivot, title=f"Heatmap of {numeric_cols[0]} by {non_numeric_cols[0]} and {non_numeric_cols[1]}")
-                return fig, None
-            else:
-                return None, "Cannot create heatmap: Need at least 1 numeric column and 2 categorical columns"
         
         elif chart_type == "time series":
             if not datetime_cols:
@@ -605,7 +592,7 @@ def detect_visualization_request(question):
         "visualize", "visualization", "plot", "chart", "graph", "diagram",
         "show me a chart", "display a graph", "create a plot", "draw a",
         "bar chart", "pie chart", "line graph", "histogram", "scatter plot",
-        "heatmap", "time series"
+        "time series"
     ]
     
     question_lower = question.lower()
@@ -624,7 +611,6 @@ def identify_chart_type(question):
         "line": ["line chart", "line graph", "trend line"],
         "scatter": ["scatter plot", "scatter graph", "scatter chart"],
         "histogram": ["histogram", "distribution chart"],
-        "heatmap": ["heatmap", "heat map", "correlation matrix"],
         "time series": ["time series chart", "time series analysis", "time series plot"]
     }
     
